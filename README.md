@@ -16,4 +16,4 @@ The interface is implemented simply using the Streamlit framework, which facilit
 - Requests
 
 ## Running the app
-To run the app simply exevute the command `streamlit run FullScanChecker.py`.
+To run the app simply execute the command `streamlit run FullScanChecker.py`.
