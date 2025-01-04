@@ -8,8 +8,9 @@ from selenium.webdriver.common.action_chains import ActionChains
 import pyperclip
 import streamlit as st
 import requests
-ScoresTable = {'Página':[],'Pontuação':[], 'Link':[]}
+ScoresTable = {'Page':[],'Score':[], 'Link':[]}
 firstPage = True
+firstTime = True
 count, finalScore,pageCount = 0, 0, 0
 placeholder = st.empty()
 imagesList = {}
@@ -18,12 +19,17 @@ scoreList = {}
 infoList = {}
 repeatList = []
 def getPageScore(html,site = ''):
-    global driver, actions
+    global driver, actions,firstTime
     practicesList = []
     tableList = []
     info = []
     driver.switch_to.window(driver.window_handles[1])
     driver.get('https://accessmonitor.acessibilidade.gov.pt/')
+    if firstTime:
+        english = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, '//button[contains(@id,"langModeBtn")]')))
+        english.click()
+        firstTime = False
     HtmlMode = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//button[contains(@data-rr-ui-event-key,"tab2")]')))
     HtmlMode.click()
     search = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "html")))
@@ -64,26 +70,26 @@ def getPageScore(html,site = ''):
             actions.move_to_element(element).perform()
             practicesList.append(element.screenshot_as_png)
         if firstPage:
-            ScoresTable['Página'].append('Início')
+            ScoresTable['Page'].append('Main Page')
             ScoresTable['Link'].append(site)
-            imagesList['Início'] = practicesList
-            scoreList['Início'] = scoreImage
-            overviewList['Início'] = tableList
-            infoList['Início'] = info
+            imagesList['Main Page'] = practicesList
+            scoreList['Main Page'] = scoreImage
+            overviewList['Main Page'] = tableList
+            infoList['Main Page'] = info
         else:
             driver.switch_to.window(driver.window_handles[2])
             if driver.title in imagesList.keys():
                 repeatList.append(driver.title)
                 repeat = repeatList.count(driver.title) + 1
                 repeatTitle =f'{driver.title}-{repeat}'
-                ScoresTable['Página'].append(repeatTitle)
+                ScoresTable['Page'].append(repeatTitle)
                 ScoresTable['Link'].append(site)
                 imagesList[repeatTitle] = practicesList
                 scoreList[repeatTitle] = scoreImage
                 overviewList[repeatTitle] = tableList
                 infoList[repeatTitle] = info
             else:
-                ScoresTable['Página'].append(driver.title)
+                ScoresTable['Page'].append(driver.title)
                 ScoresTable['Link'].append(site)
                 imagesList[driver.title] = practicesList
                 scoreList[driver.title] = scoreImage
@@ -123,7 +129,7 @@ def searchThroughWebsite(linkList,site):
                 removeList.append(link)
                 continue
             try:
-                AnalyzedSite.markdown(f"### procurando mais páginas em {link}")
+                AnalyzedSite.markdown(f"### Searching for more pages in {link}")
                 elementList = WebDriverWait(driver, 0.5).until(
                     EC.presence_of_all_elements_located((By.XPATH,queryString(site))))
             except:
@@ -134,7 +140,7 @@ def searchThroughWebsite(linkList,site):
             linkList.extend(FoundLinks)
             print(f'links novos encontrados:{len(FoundLinks)} links totais assimilados: {len(linkList)}')
             pageCount = len(linkList) - len(removeList)
-            placeholder.markdown(f"### :blue-background[Procurando Páginas: {pageCount + 1}  :mag_right: ]")
+            placeholder.markdown(f"### :blue-background[Searching for pages: {pageCount + 1}  :mag_right: ]")
     for item in removeList:
         try:
             linkList.remove(item)
@@ -154,19 +160,19 @@ def getWebsiteScores(site):
         print(f'domínio real: {site}')
     except:
         print("Site não encontrado.")
-        AnalyzedSite.markdown("### Site não encontrado, Recarregue a página e tente novamente")
+        AnalyzedSite.markdown("### Site not found, reload the page and try again...")
         driver.quit()
         return
 
     points = 0
-    AnalyzedSite.markdown(f"### Analisando página inicial {site}")
+    AnalyzedSite.markdown(f"### Analyzing main page {site}")
     result = getPageScore(site)
     if result == -1:
         return result
     driver.switch_to.window(driver.window_handles[0])
     print(result)
     if result != 0:
-        ScoresTable['Pontuação'].append(result)
+        ScoresTable['Score'].append(result)
         points += result
         count += 1
     WebDriverWait(driver, 0.1)
@@ -177,7 +183,7 @@ def getWebsiteScores(site):
     linkList = searchThroughWebsite(linkList,site)
     driver.switch_to.window(driver.window_handles[0])
     for item in linkList:
-       placeholder.markdown(f"### :blue-background[Páginas encontradas: {len(linkList) + 1}     Páginas analisadas: {count} :hourglass_flowing_sand: ]")
+       placeholder.markdown(f"### :blue-background[Found pages: {len(linkList) + 1}     Analyzed pages: {count} :hourglass_flowing_sand: ]")
        try:
            global firstPage
            firstPage = False
@@ -187,11 +193,11 @@ def getWebsiteScores(site):
            driver.switch_to.window(driver.window_handles[2])
            driver.get(item)
            html = driver.page_source
-           AnalyzedSite.markdown(f"### Analisando {item}")
+           AnalyzedSite.markdown(f"### Analyzing {item}")
            result = getPageScore(html,site=item)
            driver.switch_to.window(driver.window_handles[0])
            if result != 0:
-               ScoresTable['Pontuação'].append(result)
+               ScoresTable['Score'].append(result)
                print(result)
                points += result
                count += 1
@@ -203,8 +209,8 @@ def getWebsiteScores(site):
         finalScore = 0
     else:
         finalScore = points / count
-    print(f"Média: {finalScore}")
-    print(f"Páginas Verificadas: {count}")
+    print(f"Average Score: {finalScore}")
+    print(f"Pages verified: {count}")
     print(ScoresTable)
     df = pd.DataFrame(data=ScoresTable)
     df2 = df.dropna()
@@ -216,7 +222,7 @@ def getWebsiteScores(site):
 def imageSlider():
     sliderPlaceholder = st.empty()
     with sliderPlaceholder.container():
-        image = st.selectbox("Página", imagesList.keys())
+        image = st.selectbox("Page", imagesList.keys())
         left_co, cent_co, last_co = st.columns(3)
         with left_co:
             for element in infoList[image]:
@@ -232,11 +238,10 @@ def imageSlider():
 def main():
     global placeholder, AnalyzedSite, driver, actions
     st.title("FullScan Accessibility Checker")
-    st.subheader("Verificador de Acessibilidade")
     message = st.empty()
-    message.header("Digite o site a ser analisado")
+    message.header("Enter the site to be analyzed...")
     AnalyzedSite = st.empty()
-    site = AnalyzedSite.text_input("ex: https://site .com .br")
+    site = AnalyzedSite.text_input("ex: https://site .com")
     print(site)
     if site and site != '':
         driver = webdriver.Edge()
@@ -245,25 +250,25 @@ def main():
         driver.switch_to.new_window('tab')
         driver.switch_to.new_window('tab')
         actions = ActionChains(driver)
-        with st.spinner("Analisando Páginas...  "):
+        with st.spinner("Analyzing pages...  "):
             results = getWebsiteScores(site)
             if results is int:
-                st.header('Não foi possível analisar o site devido a um erro no access monitor. Recarregue a página e tente outro site')
+                st.header("It wasn't possible to analyze the site due to an error on access monitor. Reload the page and try another site.")
             else:
                 if count > 0:
-                    st.header(f"Páginas Totais Analisadas: {count} :white_check_mark:")
+                    st.header(f"Total verified pages: {count} :white_check_mark:")
                 if finalScore != 0:
                     if finalScore >= 8:
-                        st.header(f"Média geral: :green[{finalScore:.2f}]")
+                        st.header(f"Overral Average score: :green[{finalScore:.2f}]")
                     elif finalScore >= 6:
-                        st.header(f"Média geral: :orange[{finalScore:.2f}]")
+                        st.header(f"Overral Average score: :orange[{finalScore:.2f}]")
                     else:
-                        st.header(f"Média geral: :red[{finalScore:.2f}]")
+                        st.header(f"Overral Average score: :red[{finalScore:.2f}]")
                     st.write(results)
                     placeholder.empty()
-                    message.header("Recarregue a página para uma nova consulta")
+                    message.header("Reload the page for a new analysis.")
                     AnalyzedSite.empty()
-                    st.header("Relatório por página")
+                    st.header("Reports per page")
 
     if imagesList:
         imageSlider()
